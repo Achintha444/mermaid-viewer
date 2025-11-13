@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid Diagram Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .viewer-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: auto;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        #diagram {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .mermaid {
+            background: white;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            font-size: 18px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .viewer-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Mermaid Diagram Viewer</h1>
+            <p>Flutter App Navigation Flow</p>
+        </div>
+
+        <div class="viewer-card">
+            <div class="controls">
+                <input type="file" id="fileInput" accept=".mmd,.mermaid,.txt" style="display: none;" onchange="handleFileSelect(event)">
+                <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load File</button>
+                <button class="btn" onclick="zoomIn()">🔍 Zoom In</button>
+                <button class="btn" onclick="zoomOut()">🔍 Zoom Out</button>
+                <button class="btn" onclick="resetZoom()">↺ Reset</button>
+                <button class="btn" onclick="downloadSVG()">⬇ Download SVG</button>
+            </div>
+
+            <div id="diagram">
+                <div class="loading">Click "Load File" to select a Mermaid diagram file (.mmd, .mermaid, or .txt)</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mermaidCode = '';
+        let currentZoom = 1;
+
+        mermaid.initialize({ 
+            startOnLoad: false,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                mermaidCode = e.target.result;
+                renderDiagram();
+            };
+            reader.onerror = function() {
+                const diagramDiv = document.getElementById('diagram');
+                diagramDiv.innerHTML = '<div style="color: red;">Error reading file. Please try again.</div>';
+            };
+            reader.readAsText(file);
+        }
+
+        async function renderDiagram() {
+            if (!mermaidCode) {
+                return;
+            }
+
+            const diagramDiv = document.getElementById('diagram');
+            diagramDiv.innerHTML = '<div class="loading">Rendering diagram...</div>';
+            
+            try {
+                const { svg } = await mermaid.render('mermaidDiagram', mermaidCode);
+                diagramDiv.innerHTML = svg;
+                
+                const svgElement = diagramDiv.querySelector('svg');
+                if (svgElement) {
+                    svgElement.style.maxWidth = '100%';
+                    svgElement.style.height = 'auto';
+                }
+                currentZoom = 1;
+            } catch (error) {
+                diagramDiv.innerHTML = `<div style="color: red; padding: 20px;">Error rendering diagram: ${error.message}<br><br>Please check your Mermaid syntax.</div>`;
+            }
+        }
+
+        function zoomIn() {
+            currentZoom += 0.1;
+            applyZoom();
+        }
+
+        function zoomOut() {
+            currentZoom = Math.max(0.3, currentZoom - 0.1);
+            applyZoom();
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const svg = document.querySelector('#diagram svg');
+            if (svg) {
+                svg.style.transform = `scale(${currentZoom})`;
+                svg.style.transformOrigin = 'top center';
+            }
+        }
+
+        function downloadSVG() {
+            const svg = document.querySelector('#diagram svg');
+            if (svg) {
+                const serializer = new XMLSerializer();
+                const svgString = serializer.serializeToString(svg);
+                const blob = new Blob([svgString], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'mermaid-diagram.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+            } else {
+                alert('Please load and render a diagram first!');
+            }
+        }
+    </script>
+</body>
+</html>
